@@ -1,18 +1,21 @@
 name: Build APK
 on:
   push:
-    branches: [main, master]
   workflow_dispatch:
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Unzip project
+      - name: Find project
+        id: find
         run: |
-          mkdir -p src
-          unzip -q -o ./*.zip -d src
-          ls -la src/TipaxAuto
+          shopt -s nullglob
+          for z in *.zip; do unzip -q -o "$z" -d _src; done
+          S=$(find . -name settings.gradle.kts -not -path "./.git/*" | head -n1)
+          D=$(dirname "$S")
+          echo "dir=$D" >> "$GITHUB_OUTPUT"
+          echo "Project dir: $D"
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -21,9 +24,9 @@ jobs:
         with:
           gradle-version: 8.5
       - name: Build debug APK
-        working-directory: src/TipaxAuto
+        working-directory: ${{ steps.find.outputs.dir }}
         run: gradle assembleDebug --no-daemon
       - uses: actions/upload-artifact@v4
         with:
           name: TipaxAuto-APK
-          path: src/TipaxAuto/app/build/outputs/apk/debug/app-debug.apk
+          path: ${{ steps.find.outputs.dir }}/app/build/outputs/apk/debug/app-debug.apk
